@@ -1,0 +1,235 @@
+package org.firstinspires.ftc.teamcode._TeleOPs;
+
+import static com.sun.tools.javac.jvm.ByteCodes.error;
+
+
+import com.acmerobotics.dashboard.FtcDashboard;
+import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
+import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.CRServo;
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.HardwareMap;
+import com.acmerobotics.dashboard.config.Config;
+import com.qualcomm.robotcore.hardware.Servo;
+import com.arcrobotics.ftclib.controller.PIDController;
+
+
+
+import com.qualcomm.robotcore.util.ElapsedTime;
+
+import org.opencv.core.Mat;
+
+
+@TeleOp
+public class
+TelePID extends LinearOpMode {
+
+
+
+    //Incase Slides act up change the variables below:
+    public static int MAX_EXT = 2400;
+    public static int MID_EXT = 1300;
+    public static int NO_EXT = 0;
+
+
+    private PIDController controller;
+    //All the slide/Arm variables have an A at the beginning
+    public static double Ap = 0.02, Ai = 0, Ad = 0;
+    public static double Af = 0.05;
+    public static int Atarget = 0;
+
+    //All the Pivot variables have a P at the beginning
+    public static double Pp = .06, Pi = 0, Pd = 0;
+    public static double Pf = .008;
+    public static int Ptarget = 0;
+
+    public static int P_Down = -2580;
+    public static int P_Up = 150;
+
+    private final double ticks_in_deg = 700 / 180;
+    //Motors
+    private DcMotor FRW;
+    private DcMotor FLW;
+    private DcMotor BRW;
+    private DcMotor BLW;
+    private DcMotor Arm1;
+    private DcMotor Arm2;
+    private DcMotor Pivot;
+    private CRServo left;
+    private CRServo right;
+    private boolean APidOn;
+    private boolean PPidOn;
+
+
+
+    public void runOpMode() throws InterruptedException {
+
+
+        APidOn = true;
+        PPidOn = true;
+        controller = new PIDController(Ap,Ai,Ad);
+        telemetry = new MultipleTelemetry(telemetry, FtcDashboard.getInstance().getTelemetry());
+
+
+        //Motors
+        DcMotor FRW = hardwareMap.dcMotor.get("FRW");
+        DcMotor FLW = hardwareMap.dcMotor.get("FLW");
+        DcMotor BRW = hardwareMap.dcMotor.get("BRW");
+        DcMotor BLW = hardwareMap.dcMotor.get("BLW");
+        DcMotor Arm1 = hardwareMap.dcMotor.get("Arm1");
+        DcMotor Arm2 = hardwareMap.dcMotor.get("Arm2");
+        DcMotor Pivot = hardwareMap.dcMotor.get("Pivot");
+
+
+        CRServo left = hardwareMap.crservo.get("left");
+        CRServo right = hardwareMap.crservo.get("right");
+
+        FLW.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        BLW.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        FRW.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        BRW.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+
+        BRW.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        FRW.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        BLW.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        FLW.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        FRW.setDirection(DcMotorSimple.Direction.REVERSE);
+        BRW.setDirection(DcMotorSimple.Direction.REVERSE);
+
+
+
+        waitForStart();
+        while (opModeIsActive()) {
+
+            double y = -gamepad1.left_stick_y; // Remember, this is reversed
+            double x = gamepad1.left_stick_x; // Counteract imperfect strafing
+            double rx = .8 * (gamepad1.right_stick_x);
+            telemetry.addData("Pid Value:", APidOn);
+
+
+            double i = 0;
+            double denominator = Math.max(Math.abs(y) + Math.abs(x) + Math.abs(rx), 1);
+            double frontLeftPower = (y + x + rx) / denominator;
+            double backLeftPower = (y - x + rx) / denominator;
+            double frontRightPower = (y - x - rx) / denominator;
+            double backRightPower = (y + x - rx) / denominator;
+
+            FLW.setPower(frontLeftPower * -1);
+            BLW.setPower(backLeftPower * -1);
+            FRW.setPower(frontRightPower * -1);
+            BRW.setPower(backRightPower * -1);
+
+
+            //PidOn is a bool
+            if (APidOn){
+
+                controller.setPID(Ap,Ai,Ad);
+                int armPos = Arm1.getCurrentPosition();
+                double pid = controller.calculate(armPos, Atarget);
+                double ff = Math.cos(Math.toRadians(Atarget/ ticks_in_deg)) * Af;
+                double power = pid + ff;
+                //Finishes the math by setting the power to the pid + ff
+                Arm1.setPower(power * .6);
+                Arm2.setPower(-power * .6);
+                telemetry.addData("pos", armPos);
+                telemetry.addData("target", Atarget);
+                telemetry.update();
+                if(gamepad2.dpad_down){
+                    Atarget = NO_EXT;
+                } else if (gamepad2.dpad_right){
+                    Atarget = MID_EXT;
+                } else if (gamepad2.dpad_up){
+                    Atarget = MAX_EXT;
+                }
+            }
+            //          Slide Control Independant from bool
+            if (gamepad2.share){
+                APidOn = true;
+            }
+
+            if (gamepad2.left_stick_y > .1) {
+                APidOn = false;
+                telemetry.update();
+                Arm1.setPower(.8);
+                Arm2.setPower(-.8);
+            } else if (gamepad2.left_stick_y < -.1) {
+                APidOn = false;
+                telemetry.update();
+                Arm1.setPower(-.8);
+                Arm2.setPower(.8);
+
+            } else {
+                Arm1.setPower(0);
+                Arm2.setPower(0);
+            }
+
+
+
+            //Pivot
+
+            //PidOn is a bool
+            if (PPidOn){
+
+                controller.setPID(Pp,Pi,Pd);
+                int PivPos = Pivot.getCurrentPosition();
+                double Ppid = controller.calculate(PivPos, Ptarget);
+                double Pff = Math.cos(Math.toRadians(Atarget/ ticks_in_deg)) * Pf;
+                double Ppower = Ppid + Pff;
+                //Finishes the math by setting the power to the pid + ff
+                Pivot.setPower(Ppower * .8);
+                telemetry.addData("pos", PivPos);
+                telemetry.addData("target", Ptarget);
+                telemetry.update();
+                if(gamepad2.left_trigger > .1){
+                    Ptarget = P_Down ;
+                } else if (gamepad2.right_trigger > .1) {
+                    Ptarget = P_Up;
+                }
+
+            }
+            if (gamepad2.dpad_down){
+                PPidOn = true;
+            }
+            if (gamepad2.left_bumper) {
+                PPidOn = false;
+                Pivot.setPower(.5);
+            } else if (gamepad2.right_bumper) {
+                PPidOn = false;
+                Pivot.setPower(-.5);
+            } else {
+                Pivot.setPower(0);
+            }
+
+
+            if (gamepad2.square) {
+                left.setPower(1);
+                right.setPower(-1);
+            } else if (gamepad2.circle) {
+                left.setPower(-1);
+                right.setPower(1);
+            } else {
+                left.setPower(0);
+                right.setPower(0);
+            }
+
+            if (gamepad2.right_stick_y > 50)  {
+                Arm1.setPower(.4);
+                Arm2.setPower(-.4);
+            } else if (gamepad2.right_stick_y < -50) {
+                Arm1.setPower(-.4);
+                Arm2.setPower(.4);
+
+            } else {
+                Arm1.setPower(0);
+                Arm2.setPower(0);
+            }
+        }
+
+
+    }
+}
+
