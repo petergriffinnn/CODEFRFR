@@ -1,0 +1,116 @@
+package org.firstinspires.ftc.teamcode._TeleOPs;
+
+
+import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
+import com.qualcomm.robotcore.hardware.CRServo;
+import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
+import com.qualcomm.robotcore.hardware.Servo;
+//import com.arcrobotics.ftclib.controller.PIDController;
+
+
+@TeleOp
+
+public class AngelBots extends LinearOpMode {
+
+
+    //Motorsh
+    private DcMotor RW;
+    private DcMotor LW;
+    private DcMotor Arm1;
+    private Servo Rotator; //Sigmaservo patent pending
+    private CRServo Intake;
+
+
+    public void runOpMode() throws InterruptedException {
+
+
+//        APidOn = true;
+//        //    controller = new PIDController(Ap,Ai,Ad);
+//        telemetry = new MultipleTelemetry(telemetry, FtcDashboard.getInstance().getTelemetry());
+
+
+        //Motors
+        DcMotor RW = hardwareMap.dcMotor.get("RW");
+        DcMotor LW = hardwareMap.dcMotor.get("LW");
+        DcMotor Arm = hardwareMap.dcMotor.get("Arm");
+
+
+        CRServo Intake = hardwareMap.crservo.get("Intake");
+        Servo Rotator = hardwareMap.servo.get("Rotator");
+
+        Arm.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        LW.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        RW.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        RW.setDirection(DcMotorSimple.Direction.REVERSE);
+
+
+        waitForStart();
+        while (opModeIsActive()) {
+
+            Rotator.setPosition(0);
+
+            //Arm
+            if (gamepad2.left_stick_y > .3) {
+                Arm.setPower(-.5);
+
+            } else if (gamepad2.left_stick_y < -.3) {
+                Arm.setPower(.5);
+
+            } else {
+                Arm.setPower(0);
+
+            }
+
+            if (gamepad2.right_bumper){
+                Intake.setPower(1);
+
+            } else if (gamepad2.left_bumper){
+                Intake.setPower(-1);
+
+            } else {
+                Intake.setPower(0);
+
+            }
+
+
+
+
+
+            //Left Side control
+            if (gamepad1.left_stick_y > .3) {
+                LW.setPower(-1);
+
+
+            } else if (gamepad1.left_stick_y < -.3) {
+                LW.setPower(1);
+
+
+            } else{
+                LW.setPower(0);
+
+            }
+
+            //Right side control
+            if (gamepad1.right_stick_y > .3) {
+                RW.setPower(-1);
+
+
+            } else if (gamepad1.right_stick_y < -.3) {
+                RW.setPower(1);
+
+
+            } else{
+                RW.setPower(0);
+
+            }
+
+
+
+
+            }
+
+
+        }
+    }
